@@ -35,6 +35,8 @@ const int AUDIO_CHUNKSIZE = 1024;
 // MESSAGE
 const string MESSAGE = "\"<percentage>% Battery Remaining. Please plug in the charger.\"";
 
+bool at_exit = false;
+
 int readPercentage()
 {
     ifstream percentage_path(PERCENTAGE);
@@ -178,17 +180,30 @@ int lockFileManagement()
     }
 }
 
+void cleanUp()
+{
+    at_exit = true;
+    int result = remove(LOCK_PATH.c_str());
+    if (result != 0) cout << "ERROR: Failed to remove the lock file" << endl;
+}
+
 void sigHandler(int signal)
 {
-    int result = remove(LOCK_PATH.c_str()); 
-    if (result != 0) cout << "ERROR: Failed to remove the file!" << endl;
-    exit(signal);
+    if (!at_exit)
+    {
+        cleanUp();
+        exit(signal);
+    }
 }
+
 
 int main()
 {
+    // SIG HANDLE
     signal(SIGTERM, sigHandler);
     signal(SIGINT, sigHandler);
+    atexit(cleanUp);
+    //
     if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
     if (lockFileManagement() != 0) exit(1);
     bool running = true;
@@ -235,7 +250,6 @@ int main()
             cout << "Battery currently Unknown!" << endl;
             sleep(SLEEP_TIME_LONG);
         }
-        break;
     }
     return 0;
 }
