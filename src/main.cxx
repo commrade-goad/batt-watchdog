@@ -59,43 +59,52 @@ string readStatus()
     return status;
 }
 
-int playAudio(string pathToFile) {
-    ifstream file(pathToFile);
+int playAudio(string path_to_file) {
+    ifstream file(path_to_file);
     if (!file.good()) return 1;
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+    if (SDL_Init(SDL_INIT_AUDIO) < 0)
+    {
         cout << "ERROR : Failed to initialize SDL audio system: " << SDL_GetError() << endl;
         return 1;
     }
-    if (Mix_OpenAudio(AUDIO_FREQUENCY, MIX_DEFAULT_FORMAT, AUDIO_CHANNELS, AUDIO_CHUNKSIZE) < 0) {
+    if (Mix_OpenAudio(AUDIO_FREQUENCY, MIX_DEFAULT_FORMAT, AUDIO_CHANNELS, AUDIO_CHUNKSIZE) < 0) 
+    {
         cout << "ERROR : Failed to open audio device: " << Mix_GetError() << endl;
         return 1;
     }
-
-    string audioExt = pathToFile.substr(pathToFile.find_last_of('.'));
-
-    if (audioExt == ".mp3") {
-        Mix_Music* audio = Mix_LoadMUS(pathToFile.c_str());
-        if (!audio) {
+    string audioExt = path_to_file.substr(path_to_file.find_last_of('.'));
+    if (audioExt == ".mp3")
+    {
+        Mix_Music* audio = Mix_LoadMUS(path_to_file.c_str());
+        if (!audio)
+        {
             cout << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
             return 1;
         }
         Mix_PlayMusic(audio, 0);
-        while (Mix_PlayingMusic()) {
+        while (Mix_PlayingMusic())
+        {
             SDL_Delay(100);
         }
         Mix_FreeMusic(audio);
-    } else if (audioExt == ".wav") {
-        Mix_Chunk* audio = Mix_LoadWAV(pathToFile.c_str());
-        if (!audio) {
+    } 
+    else if (audioExt == ".wav")
+    {
+        Mix_Chunk* audio = Mix_LoadWAV(path_to_file.c_str());
+        if (!audio)
+        {
             cout << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
             return 1;
         }
         Mix_PlayChannel(-1, audio, 0);
-        while (Mix_Playing(-1)) {
+        while (Mix_Playing(-1))
+        {
             SDL_Delay(100);
         }
         Mix_FreeChunk(audio);
-    } else {
+    }
+    else
+    {
         cout << "ERROR: Unsupported audio format " << audioExt << endl;
         return 1;
     }
@@ -106,30 +115,36 @@ int playAudio(string pathToFile) {
     return 0;
 }
 
-int spawn_process(const vector<string>& args) {
+int spawnProcess(const vector<string>& args)
+{
     string command;
 
-    for (const string& arg : args) {
+    for (const string& arg : args)
+    {
         command += arg + " ";
     }
-    cout << command << endl;
+    int exit_code = system(command.c_str());
 
-    int exitCode = system(command.c_str());
-
-    if (exitCode == -1) {
+    if (exit_code == -1)
+    {
         cerr << "Failed to execute command: " << command << endl;
-    } else {
+    }
+    else
+    {
         cout << "command executed!" << endl;
-        if (WIFEXITED(exitCode)) {
-            int status = WEXITSTATUS(exitCode);
+        if (WIFEXITED(exit_code))
+        {
+            int status = WEXITSTATUS(exit_code);
             cout << "Child process exited with status " << status << endl;
-        } else if (WIFSIGNALED(exitCode)) {
-            int signal = WTERMSIG(exitCode);
+        }
+        else if (WIFSIGNALED(exit_code))
+        {
+            int signal = WTERMSIG(exit_code);
             cout << "Child process terminated with signal " << signal << endl;
         }
     }
 
-    return exitCode;
+    return exit_code;
 }
 
 string replaceKey(string message, string from, string to)
@@ -137,7 +152,8 @@ string replaceKey(string message, string from, string to)
     string formatted_message = message;
     string percentage_placeholder = from;
     size_t pos = formatted_message.find(percentage_placeholder);
-    if (pos != string::npos) {
+    if (pos != string::npos)
+    {
         formatted_message.replace(pos, percentage_placeholder.length(), to);
     }
 
@@ -146,8 +162,8 @@ string replaceKey(string message, string from, string to)
 
 int lockFileManagement()
 {
-    ifstream lockFileStatus(LOCK_PATH);
-    if (!lockFileStatus.good())
+    ifstream lock_file_status(LOCK_PATH);
+    if (!lock_file_status.good())
     {
         ofstream lock_file;
         lock_file.open(LOCK_PATH);
@@ -164,7 +180,6 @@ int lockFileManagement()
 
 void sigHandler(int signal)
 {
-    std::cout << "Received SIGTERM. Terminating gracefully..." << std::endl;
     int result = remove(LOCK_PATH.c_str()); 
     if (result != 0) cout << "ERROR: Failed to remove the file!" << endl;
     exit(signal);
@@ -196,7 +211,7 @@ int main()
                     break;
                 case 1 ... BATT_CRITICAL-1 :
                     cout << "sleeping for : " << SLEEP_TIME_NORMAL << endl;
-                    spawn_process({"/usr/bin/notify-send", "--app-name=Battery", "-u", "critical", "-t", "10000", replaceKey(MESSAGE, "<percentage>", to_string(battPercentage))});
+                    spawnProcess({"/usr/bin/notify-send", "--app-name=Battery", "-u", "critical", "-t", "10000", replaceKey(MESSAGE, "<percentage>", to_string(battPercentage))});
                     if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
                     sleep(SLEEP_TIME_NORMAL);
                     break;
