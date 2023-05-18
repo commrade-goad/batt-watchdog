@@ -35,8 +35,6 @@ const int AUDIO_CHUNKSIZE = 1024;
 // MESSAGE
 const string MESSAGE = "\"<percentage>% Battery Remaining. Please plug in the charger.\"";
 
-bool at_exit = false;
-
 int readPercentage()
 {
     ifstream percentage_path(PERCENTAGE);
@@ -180,32 +178,35 @@ int lockFileManagement()
     }
 }
 
-void cleanUp()
-{
-    at_exit = true;
-    int result = remove(LOCK_PATH.c_str());
-    if (result != 0) cout << "ERROR: Failed to remove the lock file" << endl;
-}
-
 void sigHandler(int signal)
 {
-    if (!at_exit)
+    int result = remove(LOCK_PATH.c_str());
+    if (result == 0)
     {
-        cleanUp();
-        exit(signal);
+        cout << "\nProgram Terminated successfully" << endl;
     }
+    else
+    {
+        cout << "\nERROR: Failed to remove the lock file" << endl;
+    }
+    exit(signal);
 }
 
+// void atexitHandler()
+// {
+//     int result = remove(LOCK_PATH.c_str());
+//     if (result != 0) cout << "ERROR: Failed to remove the lock file" << endl;
+//     exit(1);
+// }
 
 int main()
 {
+    if (lockFileManagement() != 0) exit(1);
     // SIG HANDLE
     signal(SIGTERM, sigHandler);
     signal(SIGINT, sigHandler);
-    atexit(cleanUp);
-    //
+    // atexit(atexitHandler);
     if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
-    if (lockFileManagement() != 0) exit(1);
     bool running = true;
     while (running == true)
     {
