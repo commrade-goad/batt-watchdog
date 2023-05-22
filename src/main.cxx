@@ -12,6 +12,9 @@
 #include <SDL2/SDL.h>
 using namespace std;
 
+// #define USE_LOCK_MANAGEMENT
+#define USE_STARTUP_SOUND
+
 // PATH
 const string STATUS = "/sys/class/power_supply/BAT1/status";
 const string PERCENTAGE = "/sys/class/power_supply/BAT1/capacity";
@@ -201,12 +204,16 @@ void sigHandler(int signal)
 
 int main()
 {
+#ifdef USE_LOCK_MANAGEMENT
     if (lockFileManagement() != 0) exit(1);
     // SIG HANDLE
     signal(SIGTERM, sigHandler);
     signal(SIGINT, sigHandler);
     // atexit(atexitHandler);
+#endif
+#ifdef USE_STARTUP_SOUND
     if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
+#endif
     bool running = true;
     while (running == true)
     {
