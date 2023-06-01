@@ -12,7 +12,7 @@
 #include <SDL2/SDL.h>
 using namespace std;
 
-// #define USE_LOCK_MANAGEMENT
+#define USE_LOCK_MANAGEMENT
 #define USE_STARTUP_SOUND
 
 // PATH
