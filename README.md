@@ -5,8 +5,16 @@ this is like the second version of [batt-reminder](https://github.com/commrade-g
 - Additional dependencies are ``SDL2, SDL2_mixer``
 
 ## BUILD
+- ``./build.sh``
+
 ```
 $ ./build.sh [compiler] [destination]
+```
+
+- ``cmake``
+```
+$ cmake .
+$ make
 ```
 
 ## NOTE
