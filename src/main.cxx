@@ -38,6 +38,13 @@ const int AUDIO_CHUNKSIZE = 1024;
 // MESSAGE
 const string MESSAGE = "\"<percentage>% Battery Remaining. Please plug in the charger.\"";
 
+typedef enum {
+    Charging,
+    Discharging,
+    Full,
+    Unknown,
+} BattStatus;
+
 int readPercentage()
 {
     ifstream percentage_path(PERCENTAGE);
@@ -52,14 +59,17 @@ int readPercentage()
     return result;
 }
 
-string readStatus()
+BattStatus readStatus()
 {
     ifstream status_path(STATUS);
     string status;
-    if (!status_path.good()) return "\0";
+    if (!status_path.good()) return BattStatus::Unknown;
     getline (status_path, status);
     status_path.close();
-    return status;
+    if (status == "Discharging") return BattStatus::Discharging;
+    else if (status == "Charging") return BattStatus::Charging;
+    else if (status == "Full") return BattStatus::Full;
+    else return BattStatus::Unknown;
 }
 
 int playAudio(string path_to_file) {
@@ -67,36 +77,36 @@ int playAudio(string path_to_file) {
     if (!file.good()) return 1;
     if (SDL_Init(SDL_INIT_AUDIO) < 0)
     {
-        cout << "ERROR : Failed to initialize SDL audio system: " << SDL_GetError() << endl;
+        cerr << "ERROR : Failed to initialize SDL audio system: " << SDL_GetError() << endl;
         return 1;
     }
     if (Mix_OpenAudio(AUDIO_FREQUENCY, MIX_DEFAULT_FORMAT, AUDIO_CHANNELS, AUDIO_CHUNKSIZE) < 0) 
     {
-        cout << "ERROR : Failed to open audio device: " << Mix_GetError() << endl;
+        cerr << "ERROR : Failed to open audio device: " << Mix_GetError() << endl;
         return 1;
     }
     string audioExt = path_to_file.substr(path_to_file.find_last_of('.'));
     if (audioExt == ".mp3")
-    {
-        Mix_Music* audio = Mix_LoadMUS(path_to_file.c_str());
-        if (!audio)
         {
-            cout << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
-            return 1;
-        }
-        Mix_PlayMusic(audio, 0);
-        while (Mix_PlayingMusic())
-        {
-            SDL_Delay(100);
-        }
-        Mix_FreeMusic(audio);
-    } 
+            Mix_Music* audio = Mix_LoadMUS(path_to_file.c_str());
+            if (!audio)
+            {
+                cerr << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
+                return 1;
+            }
+            Mix_PlayMusic(audio, 0);
+            while (Mix_PlayingMusic())
+            {
+                SDL_Delay(100);
+            }
+            Mix_FreeMusic(audio);
+        } 
     else if (audioExt == ".wav")
-    {
+        {
         Mix_Chunk* audio = Mix_LoadWAV(path_to_file.c_str());
         if (!audio)
         {
-            cout << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
+            cerr << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
             return 1;
         }
         Mix_PlayChannel(-1, audio, 0);
@@ -129,22 +139,22 @@ int spawnProcess(const vector<string>& args)
     int exit_code = system(command.c_str());
 
     if (exit_code == -1)
-    {
-        cerr << "Failed to execute command: " << command << endl;
-    }
+        {
+            cerr << "Failed to execute command: " << command << endl;
+        }
     else
     {
         cout << "command executed!" << endl;
         if (WIFEXITED(exit_code))
-        {
-            int status = WEXITSTATUS(exit_code);
-            cout << "Child process exited with status " << status << endl;
-        }
+            {
+                int status = WEXITSTATUS(exit_code);
+                cout << "Child process exited with status " << status << endl;
+            }
         else if (WIFSIGNALED(exit_code))
         {
-            int signal = WTERMSIG(exit_code);
-            cout << "Child process terminated with signal " << signal << endl;
-        }
+        int signal = WTERMSIG(exit_code);
+        cout << "Child process terminated with signal " << signal << endl;
+    }
     }
 
     return exit_code;
@@ -167,13 +177,13 @@ int lockFileManagement()
 {
     ifstream lock_file_status(LOCK_PATH);
     if (!lock_file_status.good())
-    {
-        ofstream lock_file;
-        lock_file.open(LOCK_PATH);
-        lock_file << "RUNNING";
-        lock_file.close();
-        return 0;
-    }
+        {
+            ofstream lock_file;
+            lock_file.open(LOCK_PATH);
+            lock_file << "RUNNING";
+            lock_file.close();
+            return 0;
+        }
     else
     {
         cout << "ERROR : Program is already running" << endl;
@@ -185,12 +195,12 @@ void sigHandler(int signal)
 {
     int result = remove(LOCK_PATH.c_str());
     if (result == 0)
-    {
-        cout << "\nProgram Terminated successfully" << endl;
-    }
+        {
+            cout << "\nProgram Terminated successfully" << endl;
+        }
     else
     {
-        cout << "\nERROR: Failed to remove the lock file" << endl;
+        cerr << "\nERROR: Failed to remove the lock file" << endl;
     }
     exit(signal);
 }
@@ -212,51 +222,53 @@ int main()
     // atexit(atexitHandler);
 #endif
 #ifdef USE_STARTUP_SOUND
-    if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
+    if (playAudio(AUDIO_PATH) != 0) cerr << "ERROR : Failed to play audio." << endl;
 #endif
     bool running = true;
     while (running == true)
     {
-        string battStatus = readStatus();
+        BattStatus battStatus = readStatus();
         int battPercentage = readPercentage();
         cout << battPercentage << endl;
-        if (battStatus == "Discharging")
+        switch (battStatus)
         {
-            cout << "Battery currently Discharging" << endl;
-            switch (battPercentage) {
-                case BATT_LOW ... 100:
-                    cout << "sleeping for : " << SLEEP_TIME_LONG << endl;
-                    sleep(SLEEP_TIME_LONG);
-                    break;
-                case BATT_CRITICAL ... BATT_LOW-1:
-                    cout << "sleeping for : " << SLEEP_TIME_FAST << endl;
-                    sleep(SLEEP_TIME_FAST);
-                    break;
-                case 1 ... BATT_CRITICAL-1 :
-                    cout << "sleeping for : " << SLEEP_TIME_NORMAL << endl;
-                    spawnProcess({"/usr/bin/notify-send", "--app-name=Battery", "-u", "critical", "-t", "10000", replaceKey(MESSAGE, "<percentage>", to_string(battPercentage))});
-                    if (playAudio(AUDIO_PATH) != 0) cout << "ERROR : Failed to play audio." << endl;
-                    sleep(SLEEP_TIME_NORMAL);
-                    break;
-                default:
-                    break;
-            }
-
-        } 
-        else if (battStatus == "Charging")
-        {
-            cout << "Battery currently Charging" << endl;
-            sleep(SLEEP_TIME_LONG);
-        } 
-        else if (battStatus == "Full")
-        {
-            cout << "Battery currently Full!" << endl;
-            sleep(SLEEP_TIME_LONG);
-        } 
-        else
-        {
-            cout << "Battery currently Unknown!" << endl;
-            sleep(SLEEP_TIME_LONG);
+            case BattStatus::Discharging:
+                {
+                    cout << "Battery currently Discharging" << endl;
+                    switch (battPercentage) {
+                        case BATT_LOW ... 100:
+                            cout << "sleeping for : " << SLEEP_TIME_LONG << endl;
+                            sleep(SLEEP_TIME_LONG);
+                            break;
+                        case BATT_CRITICAL ... BATT_LOW-1:
+                            cout << "sleeping for : " << SLEEP_TIME_FAST << endl;
+                            sleep(SLEEP_TIME_FAST);
+                            break;
+                        case 1 ... BATT_CRITICAL-1 :
+                            cout << "sleeping for : " << SLEEP_TIME_NORMAL << endl;
+                            spawnProcess({"/usr/bin/notify-send", "--app-name=Battery", "-u", "critical", "-t", "10000", replaceKey(MESSAGE, "<percentage>", to_string(battPercentage))});
+                            if (playAudio(AUDIO_PATH) != 0) cerr << "ERROR : Failed to play audio." << endl;
+                            sleep(SLEEP_TIME_NORMAL);
+                            break;
+                        default:
+                            break;
+                    }
+                    case BattStatus::Charging:
+                        {
+                            cout << "Battery currently Charging" << endl;
+                            sleep(SLEEP_TIME_LONG);
+                        }
+                    case BattStatus::Full:
+                        {
+                            cout << "Battery currently Full!" << endl;
+                            sleep(SLEEP_TIME_LONG);
+                        } 
+                    default:
+                        {
+                            cout << "Battery currently Unknown!" << endl;
+                            sleep(SLEEP_TIME_LONG);
+                        }
+                }
         }
     }
     return 0;
