@@ -1,7 +1,7 @@
 #!/bin/sh
 COMPILER=$1
 DESTINATION=$2
-LINK="-lSDL2 -lSDL2_mixer"
+LINK="-lSDL2 -lSDL2_mixer -lmpg123"
 
 print_help(){
     echo 'USAGE: (1) ./build.sh [gcc/clang]'
