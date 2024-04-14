@@ -70,24 +70,8 @@ BattStatus readStatus() {
     else return BattStatus::Unknown;
 }
 
-int getAudioLength(const string& path_to_file) {
-    ifstream file(path_to_file, ios::binary);
-    if (!file.good()) {
-        cerr << "Failed to open file: " << path_to_file << endl;
-        return -1;
-    }
-
-    file.seekg(0, ios::end);
-    int length = file.tellg();
-    file.close();
-
-    return length;
-}
-
 int playAudio(string path_to_file) {
     ifstream file(path_to_file);
-    int audio_len = getAudioLength(path_to_file);
-    std::cout << audio_len << std::endl;
     if (!file.good()) return 1;
     if (SDL_Init(SDL_INIT_AUDIO) < 0)
     {
@@ -100,39 +84,26 @@ int playAudio(string path_to_file) {
         return 1;
     }
     string audioExt = path_to_file.substr(path_to_file.find_last_of('.'));
-    if (audioExt == ".mp3")
-        {
-            Mix_Music* audio = Mix_LoadMUS(path_to_file.c_str());
-            if (!audio)
-            {
-                cerr << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
-                return 1;
-            }
-            Mix_PlayMusic(audio, 0);
-            while (Mix_PlayingMusic())
-            {
-                SDL_Delay(audio_len * 1000);
-            }
-            Mix_FreeMusic(audio);
-        } 
-    else if (audioExt == ".wav")
-        {
-        Mix_Chunk* audio = Mix_LoadWAV(path_to_file.c_str());
-        if (!audio)
-        {
+    if (audioExt == ".mp3" || audioExt == ".wav") {
+        Mix_Chunk * audio = Mix_LoadWAV(path_to_file.c_str());
+        if (!audio) {
             cerr << "ERROR: Failed to load audio file: " << Mix_GetError() << endl;
+            Mix_CloseAudio();
+            SDL_Quit();
             return 1;
         }
-        Mix_PlayChannel(-1, audio, 0);
-        while (Mix_Playing(-1))
-        {
-            SDL_Delay(audio_len * 1000);
+        int channel = Mix_PlayChannel(-1, audio, 0);
+        if (channel == -1) {
+            cerr << "ERROR: Failed to play audio file: " << Mix_GetError() << endl;
         }
-        Mix_FreeChunk(audio);
-    }
-    else
-    {
-        cout << "ERROR: Unsupported audio format " << audioExt << endl;
+        while (Mix_Playing(channel) != 0) {
+            SDL_Delay(300);
+        }
+
+        Mix_CloseAudio();
+        SDL_Quit();
+    } else {
+        cerr << "ERROR: Unsupported audio format " << audioExt << endl;
         return 1;
     }
 
@@ -154,7 +125,7 @@ int spawnProcess(const vector<string>& args)
 
     if (exit_code == -1)
         {
-            cerr << "Failed to execute command: " << command << endl;
+            cerr << "ERROR : Failed to execute command: " << command << endl;
         }
     else
     {
@@ -200,7 +171,7 @@ int lockFileManagement()
         }
     else
     {
-        cout << "ERROR : Program is already running" << endl;
+        cerr << "ERROR : Program is already running" << endl;
         return 1;
     }
 }
@@ -244,8 +215,7 @@ int main()
         BattStatus battStatus = readStatus();
         int battPercentage = readPercentage();
         cout << battPercentage << endl;
-        switch (battStatus)
-        {
+        switch (battStatus) {
             case BattStatus::Discharging:
                 {
                     cout << "Battery currently Discharging" << endl;
