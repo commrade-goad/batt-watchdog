@@ -2,7 +2,7 @@
 this is like the second version of [batt-reminder](https://github.com/commrade-goad/battery-reminder)
 
 ## DEPENDENCIES
-- Additional dependencies are ``SDL2, SDL2_mixer``
+- Additional dependencies are ``SDL2, SDL2_mixer, libmpg123``
 
 ## BUILD
 - ``./build.sh``
