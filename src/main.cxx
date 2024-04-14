@@ -3,7 +3,6 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
-#include <stdexcept>
 #include <string>
 #include <vector>
 #include <csignal>
@@ -59,8 +58,7 @@ int readPercentage()
     return result;
 }
 
-BattStatus readStatus()
-{
+BattStatus readStatus() {
     ifstream status_path(STATUS);
     string status;
     if (!status_path.good()) return BattStatus::Unknown;
@@ -72,8 +70,24 @@ BattStatus readStatus()
     else return BattStatus::Unknown;
 }
 
+int getAudioLength(const string& path_to_file) {
+    ifstream file(path_to_file, ios::binary);
+    if (!file.good()) {
+        cerr << "Failed to open file: " << path_to_file << endl;
+        return -1;
+    }
+
+    file.seekg(0, ios::end);
+    int length = file.tellg();
+    file.close();
+
+    return length;
+}
+
 int playAudio(string path_to_file) {
     ifstream file(path_to_file);
+    int audio_len = getAudioLength(path_to_file);
+    std::cout << audio_len << std::endl;
     if (!file.good()) return 1;
     if (SDL_Init(SDL_INIT_AUDIO) < 0)
     {
@@ -97,7 +111,7 @@ int playAudio(string path_to_file) {
             Mix_PlayMusic(audio, 0);
             while (Mix_PlayingMusic())
             {
-                SDL_Delay(100);
+                SDL_Delay(audio_len * 1000);
             }
             Mix_FreeMusic(audio);
         } 
@@ -112,7 +126,7 @@ int playAudio(string path_to_file) {
         Mix_PlayChannel(-1, audio, 0);
         while (Mix_Playing(-1))
         {
-            SDL_Delay(100);
+            SDL_Delay(audio_len * 1000);
         }
         Mix_FreeChunk(audio);
     }
